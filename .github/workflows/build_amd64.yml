@@ -1,0 +1,61 @@
+name: Build Binaries for amd64
+on:
+  workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: containers/podman
+          ref: 'v4.4.1'
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get -y install \
+          btrfs-progs \
+          dpkg \
+          git \
+          golang-go \
+          go-md2man \
+          iptables \
+          libassuan-dev \
+          libbtrfs-dev \
+          libc6-dev \
+          libdevmapper-dev \
+          libglib2.0-dev \
+          libgpgme-dev \
+          libgpg-error-dev \
+          libprotobuf-dev \
+          libprotobuf-c-dev \
+          libseccomp-dev \
+          libselinux1-dev \
+          libsystemd-dev \
+          pkg-config \
+          runc \
+          uidmap
+      - name: Build binaries
+        run: |
+          make BUILDTAGS="seccomp"
+          sudo make podman-release
+      - name: Bundle Binaries to .deb package
+        run: |
+          tar -xfv podman-release-amd64.tar.gz
+          mv podman-v4.4.1 podman_4.4.1-1_amd64 
+          mkdir podman_4.4.1-1_amd64/DEBIAN
+          touch podman_4.4.1-1_amd64/DEBIAN/control
+          cat << EOT >> podman_4.4.1-1_amd64/DEBIAN/control
+          Package: podman
+          Version: 4.4.1
+          Architecture: amd64
+          Maintainer: podman.io <podman@lists.podman.io>
+          Description: Podman is a daemonless container engine for developing, managing, and running OCI Containers on your Linux System. 
+          EOT
+          dpkg-deb --build --root-owner-group podman_4.4.1-1_amd64
+      - uses: actions/upload-artifact@v3
+        with:
+          name: podman-release
+          path: ./podman-*.tar.gz
+      - uses: actions/upload-artifact@v3
+        with:
+          name: podman-release
+          path: ./podman_*.deb
