@@ -37,9 +37,7 @@ jobs:
         run: |
           make BUILDTAGS="seccomp"
           sudo make podman-release
-      - name: Bundle Binaries to .deb package
-        run: |
-          tar -xfv podman-release-amd64.tar.gz
+          tar -xvf podman-release-amd64.tar.gz
           mv podman-v4.4.1 podman_4.4.1-1_amd64 
           mkdir podman_4.4.1-1_amd64/DEBIAN
           touch podman_4.4.1-1_amd64/DEBIAN/control
