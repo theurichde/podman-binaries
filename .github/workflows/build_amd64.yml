@@ -1,14 +1,18 @@
 name: Build Binaries for amd64
 on:
-  workflow_dispatch
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'version to build (eg: 4.4.1)'
+        required: true
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           repository: containers/podman
-          ref: 'v4.4.1'
+          ref: v${{ inputs.version }}
       - name: Install Dependencies
         run: |
           sudo apt-get update && sudo apt-get -y install \
@@ -34,26 +38,36 @@ jobs:
           runc \
           uidmap
       - name: Build binaries
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           make BUILDTAGS="seccomp"
           sudo make podman-release
           tar -xvf podman-release-amd64.tar.gz
-          mv podman-v4.4.1 podman_4.4.1-1_amd64 
-          mkdir podman_4.4.1-1_amd64/DEBIAN
-          touch podman_4.4.1-1_amd64/DEBIAN/control
-          cat << EOT >> podman_4.4.1-1_amd64/DEBIAN/control
+          mv podman-v$VERSION podman_$VERSION-1_amd64 
+          mkdir podman_$VERSION-1_amd64/DEBIAN
+          touch podman_$VERSION-1_amd64/DEBIAN/control
+          cat << EOT >> podman_$VERSION-1_amd64/DEBIAN/control
           Package: podman
-          Version: 4.4.1
+          Version: $VERSION
           Architecture: amd64
           Maintainer: podman.io <podman@lists.podman.io>
           Description: Podman is a daemonless container engine for developing, managing, and running OCI Containers on your Linux System. 
           EOT
-          dpkg-deb --build --root-owner-group podman_4.4.1-1_amd64
-      - uses: actions/upload-artifact@v3
+          dpkg-deb --build --root-owner-group podman_$VERSION-1_amd64
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: podman-release
+#          path: ./podman-*.tar.gz
+#      - uses: actions/upload-artifact@v3
+#        with:
+#          name: podman-release
+#          path: ./podman_*.deb
+      - uses: marvinpinto/action-automatic-releases@latest
         with:
-          name: podman-release
-          path: ./podman-*.tar.gz
-      - uses: actions/upload-artifact@v3
-        with:
-          name: podman-release
-          path: ./podman_*.deb
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "v${{ inputs.version }}"
+          prerelease: true
+          files: |
+            ./podman-*.tar.gz
+            ./podman_*.deb
